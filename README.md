@@ -22,7 +22,9 @@ The new icon combines a black notch capsule with a focus countdown ring.
 ## Local preview build
 
 Run `zsh Packaging/build-dmg.sh` on a Mac with Xcode. The result is
-`dist/Miorbi-preview.dmg`. This is an ad-hoc signed, unnotarized preview;
+`dist/Miorbi-0.1.0-beta.1-arm64.dmg` on Apple silicon. Set
+`MIORBI_ARCH=x86_64` to build the Intel DMG. These are ad-hoc signed,
+unnotarized previews;
 macOS may require an explicit Open Anyway action. We do not recommend
 disabling Gatekeeper globally or running a blanket `sudo xattr` command.
 
