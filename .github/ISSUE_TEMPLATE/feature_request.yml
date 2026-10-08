@@ -1,0 +1,16 @@
+name: Feature idea / 功能建议
+description: Suggest a focused improvement / 提议一项改进
+body:
+  - type: markdown
+    attributes:
+      value: "Suggestions are public. Please omit private data. / 建议公开可见，请勿填写隐私信息。"
+  - type: textarea
+    id: need
+    attributes:
+      label: What problem should this solve? / 希望解决什么问题？
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: Your idea / 你的建议

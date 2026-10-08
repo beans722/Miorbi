@@ -1,0 +1,6 @@
+.build/
+build/
+dist/
+Assets/Miorbi.iconset/
+*.xcuserstate
+.DS_Store

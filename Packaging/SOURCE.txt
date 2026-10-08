@@ -1,0 +1,5 @@
+Miorbi source code and original assets:
+https://github.com/beans722/Miorbi
+
+License: Mozilla Public License Version 2.0 (MPL-2.0).
+See LICENSE.txt beside this application. This is an unnotarized test build.

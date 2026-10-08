@@ -1,0 +1,23 @@
+name: Bug report / 报告问题
+description: Report a reproducible Miorbi issue / 报告可复现的问题
+body:
+  - type: markdown
+    attributes:
+      value: "This report is public. Do not include access tokens, personal messages, music account information, or private logs. / 此反馈公开可见，请勿填写令牌、私人对话、音乐账号或隐私日志。"
+  - type: textarea
+    id: issue
+    attributes:
+      label: What happened? / 发生了什么？
+      description: Describe what you expected and what you saw. / 请说明预期和实际结果。
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce / 复现步骤
+    validations:
+      required: true
+  - type: input
+    id: system
+    attributes:
+      label: macOS and Miorbi versions / 系统与软件版本
