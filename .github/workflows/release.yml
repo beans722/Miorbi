@@ -8,13 +8,14 @@ on:
       - '.github/workflows/release.yml'
       - 'Packaging/Info.plist'
       - 'docs/0.1.1-beta.1.md'
+      - 'Sources/Miorbi/ApplicationController.swift'
 
 permissions:
   contents: write
 
 concurrency:
   group: miorbi-beta-release
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   release:
