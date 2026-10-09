@@ -11,7 +11,6 @@ case "$target_arch" in
 esac
 stage_dir="$(mktemp -d /private/tmp/miorbi-package.XXXXXX)"
 app_dir="$stage_dir/Miorbi.app"
-product_dir="$scratch_dir/out/Products/Release"
 mkdir -p "$app_dir/Contents/MacOS" "$app_dir/Contents/Resources" "$repo_dir/dist"
 
 cd "$repo_dir"
@@ -23,6 +22,9 @@ SWIFT_MODULE_CACHE_PATH=/private/tmp/miorbi-swift-cache \
 swift build -c release --disable-sandbox -debug-info-format none "${target_flags[@]}" \
   --cache-path /private/tmp/miorbi-package-cache \
   --scratch-path "$scratch_dir"
+
+# SwiftPM output layout varies with the installed Xcode/Swift version.
+product_dir="$(swift build -c release --show-bin-path "${target_flags[@]}" --scratch-path "$scratch_dir")"
 
 cp "$product_dir/Miorbi" "$app_dir/Contents/MacOS/Miorbi"
 cp -R "$product_dir/Miorbi_Miorbi.bundle" "$app_dir/Contents/Resources/"
