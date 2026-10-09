@@ -19,6 +19,7 @@ struct CodexEvent: Codable, Equatable {
 enum CodexActivity: Equatable {
     case idle
     case running
+    case settling
     case approval
     case completed
     case interrupted
@@ -59,16 +60,26 @@ struct CodexActivitySnapshot: Equatable {
     let activity: CodexActivity
     let since: Date?
 
+    // Stop ends a turn, not necessarily the user's whole task. Wait for a
+    // quiet period so an automatic continuation can cancel the notice.
+    static let completionQuietPeriod: TimeInterval = 30
+    static let completionDisplayPeriod: TimeInterval = 5
+
     static func derive(from events: [CodexEvent], at now: Date = Date()) -> CodexActivitySnapshot {
-        let valid = events.filter { now.timeIntervalSince($0.timestamp) < 7_200 }
+        let valid = events.filter { now.timeIntervalSince($0.timestamp) >= 0 && now.timeIntervalSince($0.timestamp) < 7_200 }
         guard let latest = valid.last else { return .init(activity: .idle, since: nil) }
         let current = valid.filter { $0.sessionID == latest.sessionID && ($0.turnID == latest.turnID || latest.turnID.isEmpty) }
         guard let last = current.last else { return .init(activity: .idle, since: nil) }
         switch last.name {
         case "Stop":
-            return now.timeIntervalSince(last.timestamp) < 5
-                ? .init(activity: .completed, since: last.timestamp)
-                : .init(activity: .idle, since: nil)
+            let age = now.timeIntervalSince(last.timestamp)
+            if age < completionQuietPeriod {
+                return .init(activity: .settling, since: last.timestamp)
+            }
+            if age < completionQuietPeriod + completionDisplayPeriod {
+                return .init(activity: .completed, since: last.timestamp)
+            }
+            return .init(activity: .idle, since: nil)
         case "Interrupt":
             return now.timeIntervalSince(last.timestamp) < 5
                 ? .init(activity: .interrupted, since: last.timestamp)

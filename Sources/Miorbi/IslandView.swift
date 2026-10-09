@@ -71,6 +71,7 @@ struct IslandView: View {
         switch store.codex.activity {
         case .idle: ""
         case .running: store.label("运行中", "Running")
+        case .settling: store.label("收尾中", "Wrapping up")
         case .approval: store.label("需要审批", "Approval needed")
         case .completed: store.label("任务完成", "Task complete")
         case .interrupted: store.label("已中断", "Interrupted")
