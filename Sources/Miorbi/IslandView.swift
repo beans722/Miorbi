@@ -55,7 +55,11 @@ struct IslandView: View {
             }
                 .padding(.horizontal, compactActivity ? 6 : 0)
                 .frame(height: barHeight)
-                .background(Color.black, in: RoundedRectangle(cornerRadius: 12))
+                .background {
+                    if !store.isExpanded {
+                        RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Color.black)
+                    }
+                }
 
             VStack(spacing: 0) {
             if showsActivityRow {
@@ -139,14 +143,19 @@ struct IslandView: View {
             }
             .frame(width: contentWidth)
             .background {
-                if store.isExpanded || showsActivityRow {
+                if !store.isExpanded && showsActivityRow {
                     RoundedRectangle(cornerRadius: 14, style: .continuous).fill(Color.black)
                 }
             }
-            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         }
         .foregroundStyle(.white)
         .frame(width: contentWidth)
+        .background {
+            if store.isExpanded {
+                RoundedRectangle(cornerRadius: 14, style: .continuous).fill(Color.black)
+            }
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         .animation(.spring(response: 0.28, dampingFraction: 0.9), value: store.isExpanded)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }

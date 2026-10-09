@@ -57,6 +57,10 @@ final class IslandLayoutTests: XCTestCase {
         activeRenderer.scale = 2
         let activeImage = try XCTUnwrap(activeRenderer.nsImage)
         let activeBitmap = try XCTUnwrap(NSBitmapImageRep(data: XCTUnwrap(activeImage.tiffRepresentation)))
+        // Both sides of the former join must be solid; only the outer
+        // silhouette has rounded corners, never the internal row boundary.
+        XCTAssertEqual(activeBitmap.colorAt(x: 4, y: 62)?.alphaComponent ?? 0, 1, accuracy: 0.01)
+        XCTAssertEqual(activeBitmap.colorAt(x: 4, y: 66)?.alphaComponent ?? 0, 1, accuracy: 0.01)
         try XCTUnwrap(activeBitmap.representation(using: .png, properties: [:]))
             .write(to: URL(fileURLWithPath: "/private/tmp/miorbi-single-codex.png"))
     }
