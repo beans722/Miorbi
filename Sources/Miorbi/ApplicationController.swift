@@ -49,13 +49,7 @@ final class ApplicationController: NSObject, NSApplicationDelegate {
 
     private func createStatusItem() {
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
-        // Use the selected product artwork, not the former interwoven SF Symbol.
-        let brandIcon = Bundle.main.url(forResource: "Miorbi-LyricFocus", withExtension: "icns")
-            .flatMap { NSImage(contentsOf: $0) } ?? NSApplication.shared.applicationIconImage
-        brandIcon?.size = NSSize(width: 18, height: 18)
-        brandIcon?.isTemplate = false
-        brandIcon?.accessibilityDescription = "Miorbi"
-        item.button?.image = brandIcon
+        item.button?.image = Self.menuBarIcon()
         let menu = NSMenu()
         menu.addItem(NSMenuItem(title: "Settings / 设置", action: #selector(openSettings), keyEquivalent: ","))
         menu.addItem(NSMenuItem.separator())
@@ -63,6 +57,29 @@ final class ApplicationController: NSObject, NSApplicationDelegate {
         for item in menu.items { item.target = self }
         item.menu = menu
         statusItem = item
+    }
+
+    // Transparent template artwork follows the menu bar's system tint.
+    // The full-color tile remains the app icon, never the menu-bar background.
+    static func menuBarIcon() -> NSImage {
+        let image = NSImage(size: NSSize(width: 22, height: 18), flipped: false) { _ in
+            NSColor.black.setStroke()
+            let outline = NSBezierPath(roundedRect: NSRect(x: 1.5, y: 3, width: 19, height: 12), xRadius: 6, yRadius: 6)
+            outline.lineWidth = 1.5
+            outline.stroke()
+            let lyrics = NSBezierPath()
+            lyrics.lineWidth = 1.8
+            lyrics.lineCapStyle = .round
+            lyrics.move(to: NSPoint(x: 6, y: 10.5))
+            lyrics.line(to: NSPoint(x: 16, y: 10.5))
+            lyrics.move(to: NSPoint(x: 6, y: 7))
+            lyrics.line(to: NSPoint(x: 12, y: 7))
+            lyrics.stroke()
+            return true
+        }
+        image.isTemplate = true
+        image.accessibilityDescription = "Miorbi"
+        return image
     }
 
     private func createIsland() {
