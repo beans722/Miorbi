@@ -23,7 +23,7 @@ Codex 本地事件只保存事件类型及会话/轮次标识，不保存提示�
 
 从 [Releases](https://github.com/beans722/Miorbi/releases) 下载：Apple silicon 选择 `arm64.dmg`，Intel Mac 选择 `x86_64.dmg`。把 `Miorbi.app` 拖入「应用程序」。测试包使用 ad-hoc 签名，未经 Apple 公证；如 macOS 阻止打开，请先核对 Release 页面列出的 SHA-256，再在「系统设置 → 隐私与安全性」中仅对该应用选择「仍要打开」。不要全局关闭 Gatekeeper。
 
-`v0.1.1-beta.3` 更新定稿图标、紧凑刘海布局、悬停专注控件和 Codex 任务结束后的限额隐藏；加入网易云同步歌词测试接入。网易云歌词按歌曲 ID 联网获取，默认关闭；Apple Music 同步歌词尚未实现。计时、审批/完成判定和不同设备上的布局仍需反馈，不承诺零延迟。请勿在公开 Issue 中提交令牌、私人对话或日志。
+`v0.1.1-beta.4` 更新定稿图标、紧凑刘海布局、悬停专注控件和 Codex 任务结束后的限额隐藏；加入网易云同步歌词测试接入。网易云歌词按歌曲 ID 联网获取，默认关闭；Apple Music 同步歌词尚未实现。计时、审批/完成判定和不同设备上的布局仍需反馈，不承诺零延迟。请勿在公开 Issue 中提交令牌、私人对话或日志。
 
 在装有 Xcode 的 Mac 上也可运行 `zsh Packaging/build-dmg.sh` 本地构建。默认生成 Apple silicon DMG；设置 `MIORBI_ARCH=x86_64` 可构建 Intel 版本。
 
@@ -48,7 +48,7 @@ Local Codex events store only event type and session/turn identifiers, never pro
 
 Download from [Releases](https://github.com/beans722/Miorbi/releases): choose `arm64.dmg` for Apple silicon or `x86_64.dmg` for an Intel Mac, then drag `Miorbi.app` to Applications. These test builds are ad-hoc signed and not Apple-notarized. If macOS blocks launch, verify the SHA-256 listed on the Release page, then use the per-app **Open Anyway** option in System Settings → Privacy & Security. Do not disable Gatekeeper globally.
 
-`v0.1.1-beta.3` updates the selected app icon, compact notch layout, hover focus controls and immediate quota hiding after Codex stops. Experimental NetEase synced lyrics request only song IDs and are off by default. Apple Music synchronized lyrics are not implemented. Timing, approval/completion detection and cross-device layouts still need feedback; zero latency is not guaranteed. Do not post tokens, private conversations, or logs in a public Issue.
+`v0.1.1-beta.4` updates the selected app icon, compact notch layout, hover focus controls and immediate quota hiding after Codex stops. Experimental NetEase synced lyrics request only song IDs and are off by default. Apple Music synchronized lyrics are not implemented. Timing, approval/completion detection and cross-device layouts still need feedback; zero latency is not guaranteed. Do not post tokens, private conversations, or logs in a public Issue.
 
 To build locally on a Mac with Xcode, run `zsh Packaging/build-dmg.sh`. The default is an Apple silicon DMG; set `MIORBI_ARCH=x86_64` for Intel.
 

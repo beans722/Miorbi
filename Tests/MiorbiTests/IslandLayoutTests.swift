@@ -46,7 +46,7 @@ final class IslandLayoutTests: XCTestCase {
     func testCameraAndControlsAlwaysHaveDedicatedSpace() {
         for camera in [120.0, 180, 220] {
             let layout = IslandLayout(cameraWidth: camera, wingWidth: 96, topHeight: 32, showsLyrics: true, expanded: true)
-            XCTAssertEqual(layout.width, 320)
+            XCTAssertEqual(layout.width, max(camera + 108, 320))
             XCTAssertEqual(layout.menuBarPaintWidth, camera)
             XCTAssertEqual(layout.height, 98)
         }
@@ -67,13 +67,13 @@ final class IslandLayoutTests: XCTestCase {
         XCTAssertEqual(withoutLyrics.height, 72)
     }
 
-    func testRunningActivityStaysBelowMenuBar() {
+    func testRunningActivityUsesOnlyNarrowWingsAndNoLowerStrip() {
         for camera in [120.0, 180, 220] {
             let layout = IslandLayout(cameraWidth: camera, wingWidth: 72, topHeight: 32,
                 showsLyrics: false, expanded: false, showsActivity: true)
-            XCTAssertEqual(layout.menuBarPaintWidth, camera)
-            XCTAssertEqual(layout.width, 320)
-            XCTAssertEqual(layout.height - layout.topHeight, 38)
+            XCTAssertEqual(layout.menuBarPaintWidth, camera + 108)
+            XCTAssertEqual(layout.width, camera + 108)
+            XCTAssertEqual(layout.height - layout.topHeight, 0)
         }
     }
 }

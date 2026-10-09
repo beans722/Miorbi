@@ -8,11 +8,49 @@ struct IslandView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // The only painted area in the menu bar is the physical notch.
-            Color.clear
-                .frame(width: notchWidth, height: barHeight)
+            HStack(spacing: 0) {
+                if compactActivity {
+                    Group {
+                        if codexVisible { leadingContent }
+                        else if let pet = store.selectedPet, store.focus.claimedPets.contains(pet) {
+                            PetView(pet: pet, isActive: store.focus.phase == .running, now: store.now)
+                        } else { Image(systemName: "timer").foregroundStyle(.mint) }
+                    }.frame(width: 48)
+                }
+                Color.clear.frame(width: notchWidth)
+                if compactActivity {
+                    Group {
+                        if codexVisible {
+                            VStack(alignment: .trailing, spacing: 1) {
+                                if store.codex.activity.displaysUsage, let usage = store.usage {
+                                    if let five = usage.fiveHour { Text("5h \(five.remainingPercent)%") }
+                                    if let week = usage.weekly { Text("7d \(week.remainingPercent)%") }
+                                } else {
+                                    Image(systemName: store.codex.activity == .approval ? "exclamationmark.circle.fill" : "checkmark")
+                                }
+                            }
+                            .font(.system(size: 9, weight: .semibold, design: .rounded))
+                            .monospacedDigit()
+                            .help(codexStatus)
+                        } else {
+                            VStack(spacing: 2) {
+                                Circle().trim(from: 0, to: store.focus.progress(at: store.now))
+                                    .stroke(.mint, style: StrokeStyle(lineWidth: 2, lineCap: .round))
+                                    .rotationEffect(.degrees(-90)).frame(width: 13, height: 13)
+                                if store.alwaysShowFocusTime {
+                                    let seconds = Int(store.focus.remainingSeconds(at: store.now))
+                                    Text(String(format: "%02d:%02d", seconds / 60, seconds % 60))
+                                        .font(.system(size: 8, weight: .semibold)).monospacedDigit()
+                                }
+                            }
+                        }
+                    }
+                    .frame(width: 48)
+                }
+            }
+                .padding(.horizontal, compactActivity ? 6 : 0)
+                .frame(height: barHeight)
                 .background(Color.black, in: RoundedRectangle(cornerRadius: 12))
-                .allowsHitTesting(false)
 
             VStack(spacing: 0) {
             if showsActivityRow {
@@ -130,12 +168,15 @@ struct IslandView: View {
     }
 
     private var showsActivityRow: Bool {
-        codexVisible || store.focus.phase == .running || store.focus.phase == .paused ||
-            (store.isExpanded && store.music.playback != .stopped)
+        store.isExpanded && (codexVisible || store.focus.phase == .running || store.focus.phase == .paused || store.music.playback != .stopped)
+    }
+
+    private var compactActivity: Bool {
+        codexVisible || store.focus.phase == .running || store.focus.phase == .paused
     }
 
     private var contentWidth: CGFloat {
-        store.isExpanded || showsActivityRow ? max(notchWidth, 320) : notchWidth
+        store.isExpanded ? max(notchWidth + 108, 320) : notchWidth + (compactActivity ? 108 : 0)
     }
 
     private var codexVisible: Bool {

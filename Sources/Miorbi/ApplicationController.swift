@@ -30,7 +30,7 @@ final class ApplicationController: NSObject, NSApplicationDelegate {
                 // Never claim input in the system menu bar outside the notch.
                 let pointer = NSEvent.mouseLocation
                 let menuFloor = panel.screen.map { $0.frame.maxY - $0.safeAreaInsets.top } ?? stableFrame.maxY
-                let camera = panel.screen.map { self.notchWidth($0) } ?? 0
+                let camera = (panel.screen.map { self.notchWidth($0) } ?? 0) + 108
                 let inMenu = pointer.y >= menuFloor
                 let inCamera = abs(pointer.x - stableFrame.midX) <= camera / 2
                 let hitArea = self.store.isExpanded ? stableFrame.insetBy(dx: -6, dy: -6) : stableFrame
@@ -159,7 +159,7 @@ final class ApplicationController: NSObject, NSApplicationDelegate {
         let width = layout.width
         let height = layout.height
         targetFrame = NSRect(x: screen.frame.midX - width / 2, y: screen.frame.maxY - height, width: width, height: height)
-        let canvasWidth = max(notch, 320)
+        let canvasWidth = max(notch + 108, 320)
         let canvasHeight = top + 38 + 26 + 40
         let canvas = NSRect(x: screen.frame.midX - canvasWidth / 2, y: screen.frame.maxY - canvasHeight, width: canvasWidth, height: canvasHeight)
         if panel.frame != canvas {
