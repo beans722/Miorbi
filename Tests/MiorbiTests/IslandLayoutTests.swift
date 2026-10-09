@@ -15,7 +15,7 @@ final class IslandLayoutTests: XCTestCase {
         store.music = MusicSnapshot(provider: .netease, playback: .playing, title: "Layout fixture")
         store.lyric = "布局测试：歌词必须完整位于黑色圆角内部"
         store.isExpanded = true
-        let layout = IslandLayout(cameraWidth: 180, wingWidth: 96, topHeight: 32, showsLyrics: true, expanded: true)
+        let layout = IslandLayout(cameraWidth: 180, wingWidth: 96, topHeight: 32, showsLyrics: true, expanded: true, showsActivity: true)
         let view = IslandView(store: store, notchWidth: 180, barHeight: 32, wingWidth: 96)
             .frame(width: layout.width, height: layout.height)
         let renderer = ImageRenderer(content: view)
@@ -26,6 +26,9 @@ final class IslandLayoutTests: XCTestCase {
             XCTFail("Could not render the offline layout"); return
         }
         try png.write(to: URL(fileURLWithPath: "/private/tmp/miorbi-layout-fixture.png"))
+        // Expanded controls may be wide below the notch, but the menu band
+        // outside the physical camera remains completely transparent.
+        XCTAssertEqual(bitmap.colorAt(x: 8, y: 20)?.alphaComponent ?? 1, 0, accuracy: 0.01)
         store.isExpanded = false
         let collapsed = IslandView(store: store, notchWidth: 180, barHeight: 32, wingWidth: 0)
             .frame(width: 180, height: 58)
@@ -43,7 +46,8 @@ final class IslandLayoutTests: XCTestCase {
     func testCameraAndControlsAlwaysHaveDedicatedSpace() {
         for camera in [120.0, 180, 220] {
             let layout = IslandLayout(cameraWidth: camera, wingWidth: 96, topHeight: 32, showsLyrics: true, expanded: true)
-            XCTAssertEqual(layout.width - camera - 24, 192)
+            XCTAssertEqual(layout.width, 320)
+            XCTAssertEqual(layout.menuBarPaintWidth, camera)
             XCTAssertEqual(layout.height, 98)
         }
     }
@@ -58,8 +62,18 @@ final class IslandLayoutTests: XCTestCase {
     func testLyricAndFocusRowsStayWithinSinglePanel() {
         let layout = IslandLayout(cameraWidth: 180, wingWidth: 96, topHeight: 32, showsLyrics: true, expanded: true)
         XCTAssertEqual(layout.height, 98)
-        XCTAssertEqual(layout.width, 396)
+        XCTAssertEqual(layout.width, 320)
         let withoutLyrics = IslandLayout(cameraWidth: 180, wingWidth: 96, topHeight: 32, showsLyrics: false, expanded: true)
         XCTAssertEqual(withoutLyrics.height, 72)
+    }
+
+    func testRunningActivityStaysBelowMenuBar() {
+        for camera in [120.0, 180, 220] {
+            let layout = IslandLayout(cameraWidth: camera, wingWidth: 72, topHeight: 32,
+                showsLyrics: false, expanded: false, showsActivity: true)
+            XCTAssertEqual(layout.menuBarPaintWidth, camera)
+            XCTAssertEqual(layout.width, 320)
+            XCTAssertEqual(layout.height - layout.topHeight, 38)
+        }
     }
 }

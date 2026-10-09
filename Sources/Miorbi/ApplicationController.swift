@@ -8,6 +8,7 @@ final class ApplicationController: NSObject, NSApplicationDelegate {
     private var islandPanel: NSPanel?
     private var settingsWindow: NSWindow?
     private var statusItem: NSStatusItem?
+    private var islandPopover: NSPopover?
     private var updates: AnyCancellable?
     private var hoverTimer: Timer?
     private var hoverState = HoverState()
@@ -24,10 +25,16 @@ final class ApplicationController: NSObject, NSApplicationDelegate {
         // Check only the pointer position, never keyboard input or screen data.
         hoverTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
             Task { @MainActor [weak self] in
-                guard let self, let panel = self.islandPanel else { return }
+                guard let self, let panel = self.islandPanel, panel.isVisible else { return }
                 let stableFrame = self.targetFrame ?? panel.frame
+                // Never claim input in the system menu bar outside the notch.
+                let pointer = NSEvent.mouseLocation
+                let menuFloor = panel.screen.map { $0.frame.maxY - $0.safeAreaInsets.top } ?? stableFrame.maxY
+                let camera = panel.screen.map { self.notchWidth($0) } ?? 0
+                let inMenu = pointer.y >= menuFloor
+                let inCamera = abs(pointer.x - stableFrame.midX) <= camera / 2
                 let hitArea = self.store.isExpanded ? stableFrame.insetBy(dx: -6, dy: -6) : stableFrame
-                let inside = hitArea.contains(NSEvent.mouseLocation) || self.store.choosingFocusDuration || Date() < self.verificationUntil
+                let inside = ((!inMenu || inCamera) && hitArea.contains(pointer)) || self.store.choosingFocusDuration || Date() < self.verificationUntil
                 let expanded = self.hoverState.update(inside: inside, at: Date())
                 if self.store.isExpanded != expanded { self.store.isExpanded = expanded }
                 // The larger transparent canvas must not intercept clicks
@@ -52,6 +59,7 @@ final class ApplicationController: NSObject, NSApplicationDelegate {
         item.button?.image = Self.menuBarIcon()
         let menu = NSMenu()
         menu.addItem(NSMenuItem(title: "Settings / 设置", action: #selector(openSettings), keyEquivalent: ","))
+        menu.addItem(NSMenuItem(title: "Open panel / 打开面板", action: #selector(openIslandPopover), keyEquivalent: ""))
         menu.addItem(NSMenuItem.separator())
         menu.addItem(NSMenuItem(title: "Quit Miorbi", action: #selector(quit), keyEquivalent: "q"))
         for item in menu.items { item.target = self }
@@ -105,6 +113,7 @@ final class ApplicationController: NSObject, NSApplicationDelegate {
 
     private func createIsland() {
         guard let screen = NSScreen.main else { return }
+        guard screen.safeAreaInsets.top > 0, notchWidth(screen) > 0 else { return }
         let width = notchWidth(screen)
         let height = max(28, screen.safeAreaInsets.top)
         let frame = NSRect(x: screen.frame.midX - width / 2, y: screen.frame.maxY - height, width: width, height: height)
@@ -127,30 +136,48 @@ final class ApplicationController: NSObject, NSApplicationDelegate {
         if let left = screen.auxiliaryTopLeftArea, let right = screen.auxiliaryTopRightArea {
             return max(0, right.minX - left.maxX)
         }
-        return 120
+        return 0
     }
 
     private func layoutIsland() {
-        guard let panel = islandPanel, let screen = panel.screen ?? NSScreen.main else { return }
+        guard let screen = NSScreen.main else { return }
+        guard screen.safeAreaInsets.top > 0, notchWidth(screen) > 0 else {
+            islandPanel?.orderOut(nil)
+            return
+        }
+        guard let panel = islandPanel else { createIsland(); return }
+        panel.orderFrontRegardless()
         let notch = notchWidth(screen)
         let top = max(28, screen.safeAreaInsets.top)
         // Reserve the camera and both wings independently. A total-width cap
         // must never steal space from the physical camera exclusion zone.
         let wing: CGFloat = 72
         let lyrics = store.neteaseLyricsEnabled && store.music.provider == .netease && store.music.playback != .stopped && ((store.focus.phase != .running && store.focus.phase != .paused) || store.showLyricsDuringFocus)
-        let layout = IslandLayout(cameraWidth: notch, wingWidth: wing, topHeight: top, showsLyrics: lyrics, expanded: store.isExpanded)
+        let showsCodex = store.codex.activity.displaysIndicator && (!store.music.isPlaying || store.codex.activity == .approval)
+        let activity = showsCodex || store.focus.phase == .running || store.focus.phase == .paused || (store.isExpanded && store.music.playback != .stopped)
+        let layout = IslandLayout(cameraWidth: notch, wingWidth: wing, topHeight: top, showsLyrics: lyrics, expanded: store.isExpanded, showsActivity: activity)
         let width = layout.width
         let height = layout.height
-        let showsCodex = store.codex.activity.displaysIndicator && (!store.music.isPlaying || store.codex.activity == .approval)
-        let visibleWidth = !store.isExpanded && showsCodex ? notch + wing * 2 + 24 : width
-        targetFrame = NSRect(x: screen.frame.midX - visibleWidth / 2, y: screen.frame.maxY - height, width: visibleWidth, height: height)
-        let canvasWidth = notch + wing * 2 + 24
-        let canvasHeight = top + 26 + 40
+        targetFrame = NSRect(x: screen.frame.midX - width / 2, y: screen.frame.maxY - height, width: width, height: height)
+        let canvasWidth = max(notch, 320)
+        let canvasHeight = top + 38 + 26 + 40
         let canvas = NSRect(x: screen.frame.midX - canvasWidth / 2, y: screen.frame.maxY - canvasHeight, width: canvasWidth, height: canvasHeight)
         if panel.frame != canvas {
             panel.setFrame(canvas, display: true)
             (panel.contentView as? IslandHostingView)?.rootView = AnyView(IslandView(store: store, notchWidth: notch, barHeight: top, wingWidth: wing))
         }
+    }
+
+    @objc private func openIslandPopover() {
+        guard let button = statusItem?.button else { return }
+        let popover = NSPopover()
+        popover.behavior = .transient
+        store.isExpanded = true
+        popover.contentViewController = NSHostingController(rootView:
+            IslandView(store: store, notchWidth: 320, barHeight: 0, wingWidth: 0)
+                .frame(width: 320, height: 104))
+        islandPopover = popover
+        popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
     }
 
     @objc private func openSettings() {

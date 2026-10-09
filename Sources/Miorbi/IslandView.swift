@@ -8,60 +8,46 @@ struct IslandView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            HStack(spacing: 0) {
-                if store.isExpanded || codexVisible {
-                HStack(spacing: 10) { leadingContent }
-                    .buttonStyle(.plain)
-                    .frame(width: wingWidth, alignment: .leading)
-                Color.clear.frame(width: notchWidth)
-                HStack(spacing: 0) {
-                if codexVisible {
-                    VStack(alignment: .trailing, spacing: 2) {
-                        Text(codexStatus)
-                            .font(.system(size: 10, weight: .semibold))
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.75)
+            // The only painted area in the menu bar is the physical notch.
+            Color.clear
+                .frame(width: notchWidth, height: barHeight)
+                .background(Color.black, in: RoundedRectangle(cornerRadius: 12))
+                .allowsHitTesting(false)
+
+            VStack(spacing: 0) {
+            if showsActivityRow {
+                HStack(spacing: 12) {
+                    leadingContent
+                        .buttonStyle(.plain)
+                    if codexVisible {
+                        Text(codexStatus).font(.system(size: 11, weight: .semibold))
+                        Spacer(minLength: 8)
                         if store.codex.activity.displaysUsage {
-                        if let usage = store.usage {
-                            HStack(spacing: 4) {
-                            if let five = usage.fiveHour { Text("5h \(five.remainingPercent)%") }
-                            if let week = usage.weekly { Text("7d \(week.remainingPercent)%") }
+                            if let usage = store.usage {
+                                HStack(spacing: 8) {
+                                    if let five = usage.fiveHour { Text("5h \(five.remainingPercent)%") }
+                                    if let week = usage.weekly { Text("7d \(week.remainingPercent)%") }
+                                }
+                                .font(.system(size: 10, weight: .semibold, design: .rounded))
+                                .monospacedDigit()
+                            } else {
+                                Text(store.label("限额同步中", "Syncing limits")).font(.caption)
                             }
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.85)
-                        } else { Text(store.label("限额同步中", "Syncing limits")) }
+                        }
+                    } else {
+                        Spacer(minLength: 8)
+                        if store.focus.phase == .running || store.focus.phase == .paused {
+                            focusIndicator
+                        } else if let pet = store.selectedPet, store.focus.claimedPets.contains(pet) {
+                            PetView(pet: pet, isActive: store.music.isPlaying, now: store.now)
                         }
                     }
-                    .font(.system(size: 9, weight: .semibold, design: .rounded))
-                    .monospacedDigit()
-                    .shadow(color: .black.opacity(0.9), radius: 2, x: 0, y: 1)
-                } else if store.focus.phase == .running || store.focus.phase == .paused {
-                    focusIndicator
-                } else if store.music.playback != .stopped, let pet = store.selectedPet, store.focus.claimedPets.contains(pet) {
-                    PetView(pet: pet, isActive: store.music.isPlaying, now: store.now)
-                } else if codexVisible && (!store.music.isPlaying || store.codex.activity == .approval) {
-                    VStack(alignment: .trailing, spacing: 1) {
-                        Text(codexStatus).font(.system(size: 9, weight: .medium))
-                        if !store.music.isPlaying, let usage = store.usage {
-                            VStack(alignment: .trailing, spacing: 0) {
-                                if let five = usage.fiveHour { Text("5h \(five.remainingPercent)%") }
-                                if let week = usage.weekly { Text("7d \(week.remainingPercent)%") }
-                            }
-                            .foregroundStyle(.white.opacity(0.7))
-                            .font(.system(size: 10, weight: .semibold, design: .rounded))
-                        }
-                    }
-                    .font(.system(size: 11, weight: .medium, design: .rounded))
-                    .monospacedDigit()
                 }
-                }
-                .frame(width: wingWidth, alignment: .trailing)
-                } else {
-                    Color.clear.frame(width: notchWidth)
-                }
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+                .padding(.horizontal, 14)
+                .frame(height: 38)
             }
-            .padding(.horizontal, store.isExpanded || codexVisible ? 12 : 0)
-            .frame(height: barHeight)
 
             if store.music.provider == .netease, store.music.playback != .stopped,
                (store.focus.phase != .running && store.focus.phase != .paused) || store.showLyricsDuringFocus,
@@ -70,7 +56,7 @@ struct IslandView: View {
                     .font(.system(size: 12, weight: .medium))
                     .shadow(color: .black.opacity(0.85), radius: 2, x: 0, y: 1)
                     .lineLimit(1)
-                    .frame(width: (store.isExpanded ? notchWidth + wingWidth * 2 + 24 : notchWidth) - 36, alignment: .center)
+                    .frame(width: contentWidth - 36, alignment: .center)
                     .clipped()
                     .padding(.horizontal, 18)
                     .frame(height: 26)
@@ -128,18 +114,28 @@ struct IslandView: View {
                 .frame(height: 40)
                 .transition(.opacity)
             }
+            }
+            .frame(width: contentWidth)
+            .background {
+                if store.isExpanded || showsActivityRow {
+                    RoundedRectangle(cornerRadius: 14, style: .continuous).fill(Color.black)
+                }
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         }
         .foregroundStyle(.white)
-        .frame(width: store.isExpanded || codexVisible ? notchWidth + wingWidth * 2 + 24 : notchWidth)
-        .background(alignment: .top) {
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(Color.black)
-                .frame(width: store.isExpanded || codexVisible ? nil : notchWidth)
-                .frame(height: store.isExpanded ? nil : barHeight)
-        }
-        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .frame(width: contentWidth)
         .animation(.spring(response: 0.28, dampingFraction: 0.9), value: store.isExpanded)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+    }
+
+    private var showsActivityRow: Bool {
+        codexVisible || store.focus.phase == .running || store.focus.phase == .paused ||
+            (store.isExpanded && store.music.playback != .stopped)
+    }
+
+    private var contentWidth: CGFloat {
+        store.isExpanded || showsActivityRow ? max(notchWidth, 320) : notchWidth
     }
 
     private var codexVisible: Bool {

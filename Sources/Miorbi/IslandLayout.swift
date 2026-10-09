@@ -7,7 +7,10 @@ struct IslandLayout: Equatable {
     let topHeight: Double
     let showsLyrics: Bool
     let expanded: Bool
+    var showsActivity: Bool = false
 
-    var width: Double { expanded ? cameraWidth + wingWidth * 2 + 24 : cameraWidth }
-    var height: Double { topHeight + (showsLyrics ? 26 : 0) + (expanded ? 40 : 0) }
+    // Content may be wider ONLY below the menu-bar exclusion band.
+    var width: Double { expanded || showsActivity ? max(cameraWidth, 320) : cameraWidth }
+    var height: Double { topHeight + (showsActivity ? 38 : 0) + (showsLyrics ? 26 : 0) + (expanded ? 40 : 0) }
+    var menuBarPaintWidth: Double { cameraWidth }
 }
