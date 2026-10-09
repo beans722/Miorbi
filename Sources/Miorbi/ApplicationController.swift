@@ -21,6 +21,7 @@ final class ApplicationController: NSObject, NSApplicationDelegate {
         NSApp.setActivationPolicy(.accessory)
         createStatusItem()
         createIsland()
+        if CommandLine.arguments.contains("--show-settings") { openSettings() }
         // Non-activating panels can miss enter events over the menu bar.
         // Check only the pointer position, never keyboard input or screen data.
         hoverTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
@@ -183,7 +184,7 @@ final class ApplicationController: NSObject, NSApplicationDelegate {
 
     @objc private func openSettings() {
         if settingsWindow == nil {
-            let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 560, height: 530),
+            let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 720, height: 560),
                                   styleMask: [.titled, .closable, .miniaturizable], backing: .buffered, defer: false)
             window.title = "Miorbi Settings"
             window.center()
