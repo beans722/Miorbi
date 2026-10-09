@@ -4,7 +4,7 @@
 
 ## 简体中文
 
-Miorbi 是一款为 macOS 刘海设计的轻量伴侣应用，把 Apple Music、Codex 任务状态和专注计时放在同一处。它是从产品需求重新实现的独立代码库，拥有自己的代码、素材和 Git 历史，不以现有 Notchly 仓库为代码基础。
+Miorbi 是一款为 macOS 刘海设计的轻量伴侣应用，把音乐、Codex 任务状态和专注计时放在同一处，让信息触手可及，让专注更有趣。
 
 ### 功能
 
@@ -29,7 +29,7 @@ Codex 本地事件只保存事件类型及会话/轮次标识，不保存提示�
 
 ## English
 
-Miorbi is a lightweight macOS notch companion that brings Apple Music, Codex task activity, and focus sessions into one compact surface. It is an independent implementation from a product specification, with its own source, assets, and Git history; it is not based on the existing Notchly source tree.
+Miorbi is a lightweight macOS notch companion that brings music, Codex task activity, and focus sessions into one compact surface—keeping useful information close and making focus more enjoyable.
 
 ### Features
 
