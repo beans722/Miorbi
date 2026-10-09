@@ -9,6 +9,7 @@ on:
       - 'Packaging/Info.plist'
       - 'docs/0.1.1-beta.1.md'
       - 'Sources/Miorbi/ApplicationController.swift'
+      - 'Packaging/build-dmg.sh'
 
 permissions:
   contents: write
