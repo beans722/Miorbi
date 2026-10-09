@@ -154,8 +154,9 @@ final class ApplicationController: NSObject, NSApplicationDelegate {
         let wing: CGFloat = 72
         let lyrics = store.neteaseLyricsEnabled && store.music.provider == .netease && store.music.playback != .stopped && ((store.focus.phase != .running && store.focus.phase != .paused) || store.showLyricsDuringFocus)
         let showsCodex = store.codex.activity.displaysIndicator && (!store.music.isPlaying || store.codex.activity == .approval)
-        let activity = showsCodex || store.focus.phase == .running || store.focus.phase == .paused || (store.isExpanded && store.music.playback != .stopped)
-        let layout = IslandLayout(cameraWidth: notch, wingWidth: wing, topHeight: top, showsLyrics: lyrics, expanded: store.isExpanded, showsActivity: activity)
+        let activity = showsCodex || store.focus.phase == .running || store.focus.phase == .paused || store.music.isPlaying || (store.isExpanded && store.music.playback != .stopped)
+        let mediaControls = !showsCodex && store.music.playback != .stopped
+        let layout = IslandLayout(cameraWidth: notch, wingWidth: wing, topHeight: top, showsLyrics: lyrics, expanded: store.isExpanded, showsActivity: activity, showsMediaControls: mediaControls)
         let width = layout.width
         let height = layout.height
         targetFrame = NSRect(x: screen.frame.midX - width / 2, y: screen.frame.maxY - height, width: width, height: height)
