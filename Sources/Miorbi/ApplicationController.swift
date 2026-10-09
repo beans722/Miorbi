@@ -62,23 +62,44 @@ final class ApplicationController: NSObject, NSApplicationDelegate {
     // Transparent template artwork follows the menu bar's system tint.
     // The full-color tile remains the app icon, never the menu-bar background.
     static func menuBarIcon() -> NSImage {
-        let image = NSImage(size: NSSize(width: 22, height: 18), flipped: false) { _ in
+        let image = NSImage(size: NSSize(width: 24, height: 20), flipped: false) { _ in
             NSColor.black.setStroke()
-            let outline = NSBezierPath(roundedRect: NSRect(x: 1.5, y: 3, width: 19, height: 12), xRadius: 6, yRadius: 6)
-            outline.lineWidth = 1.5
-            outline.stroke()
+            // Preserve the selected artwork's broken outer focus contour.
+            // Its lower-right opening houses three progress ticks.
+            let focus = NSBezierPath()
+            focus.move(to: NSPoint(x: 15, y: 2.5))
+            focus.line(to: NSPoint(x: 8, y: 2.5))
+            focus.curve(to: NSPoint(x: 1.5, y: 10), controlPoint1: NSPoint(x: 3.7, y: 2.5), controlPoint2: NSPoint(x: 1.5, y: 5.7))
+            focus.curve(to: NSPoint(x: 8, y: 17.5), controlPoint1: NSPoint(x: 1.5, y: 14.3), controlPoint2: NSPoint(x: 3.7, y: 17.5))
+            focus.line(to: NSPoint(x: 16, y: 17.5))
+            focus.curve(to: NSPoint(x: 22.5, y: 10), controlPoint1: NSPoint(x: 20.3, y: 17.5), controlPoint2: NSPoint(x: 22.5, y: 14.3))
+            focus.curve(to: NSPoint(x: 21, y: 5), controlPoint1: NSPoint(x: 22.5, y: 8), controlPoint2: NSPoint(x: 22, y: 6.3))
+            focus.lineWidth = 1.5
+            focus.lineCapStyle = .round
+            focus.stroke()
+            let island = NSBezierPath(roundedRect: NSRect(x: 4, y: 5.5, width: 16, height: 9), xRadius: 4.5, yRadius: 4.5)
+            island.lineWidth = 0.8
+            island.stroke()
             let lyrics = NSBezierPath()
-            lyrics.lineWidth = 1.8
+            lyrics.lineWidth = 1.7
             lyrics.lineCapStyle = .round
-            lyrics.move(to: NSPoint(x: 6, y: 10.5))
-            lyrics.line(to: NSPoint(x: 16, y: 10.5))
-            lyrics.move(to: NSPoint(x: 6, y: 7))
-            lyrics.line(to: NSPoint(x: 12, y: 7))
+            lyrics.move(to: NSPoint(x: 7, y: 11.5))
+            lyrics.line(to: NSPoint(x: 17, y: 11.5))
+            lyrics.move(to: NSPoint(x: 7, y: 8.5))
+            lyrics.line(to: NSPoint(x: 13.5, y: 8.5))
             lyrics.stroke()
+            let ticks = NSBezierPath()
+            ticks.lineWidth = 1.15
+            ticks.lineCapStyle = .round
+            for (x, height) in [(17.0, 1.1), (18.9, 1.7), (20.8, 2.3)] {
+                ticks.move(to: NSPoint(x: x, y: 2.1))
+                ticks.line(to: NSPoint(x: x, y: 2.1 + height))
+            }
+            ticks.stroke()
             return true
         }
         image.isTemplate = true
-        image.accessibilityDescription = "Miorbi"
+        image.accessibilityDescription = "Miorbi — Lyric Focus"
         return image
     }
 
