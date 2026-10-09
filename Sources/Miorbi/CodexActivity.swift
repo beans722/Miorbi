@@ -23,6 +23,9 @@ enum CodexActivity: Equatable {
     case approval
     case completed
     case interrupted
+
+    var displaysUsage: Bool { self == .running || self == .approval }
+    var displaysIndicator: Bool { displaysUsage || self == .completed || self == .interrupted }
 }
 
 enum CodexEventFile {
@@ -67,6 +70,16 @@ struct CodexActivitySnapshot: Equatable {
 
     static func derive(from events: [CodexEvent], at now: Date = Date()) -> CodexActivitySnapshot {
         let valid = events.filter { now.timeIntervalSince($0.timestamp) >= 0 && now.timeIntervalSince($0.timestamp) < 7_200 }
+        // One finished chat must not hide another chat that is still working.
+        let sessions = Dictionary(grouping: valid, by: \.sessionID)
+        if sessions.count > 1 {
+            let candidates = sessions.values.map { derive(from: $0, at: now) }
+            let priorities: [CodexActivity] = [.approval, .running, .settling, .completed, .interrupted]
+            for activity in priorities {
+                if let match = candidates.filter({ $0.activity == activity }).max(by: { ($0.since ?? .distantPast) < ($1.since ?? .distantPast) }) { return match }
+            }
+            return .init(activity: .idle, since: nil)
+        }
         guard let latest = valid.last else { return .init(activity: .idle, since: nil) }
         let current = valid.filter { $0.sessionID == latest.sessionID && ($0.turnID == latest.turnID || latest.turnID.isEmpty) }
         guard let last = current.last else { return .init(activity: .idle, since: nil) }

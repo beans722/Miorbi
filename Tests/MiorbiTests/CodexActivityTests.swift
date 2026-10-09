@@ -2,6 +2,21 @@ import XCTest
 @testable import Miorbi
 
 final class CodexActivityTests: XCTestCase {
+    func testLimitsDisappearAsSoonAsTaskStops() {
+        XCTAssertTrue(CodexActivity.running.displaysUsage)
+        XCTAssertTrue(CodexActivity.approval.displaysUsage)
+        for state in [CodexActivity.settling, .completed, .interrupted, .idle] {
+            XCTAssertFalse(state.displaysUsage)
+        }
+        XCTAssertFalse(CodexActivity.settling.displaysIndicator)
+        XCTAssertTrue(CodexActivity.completed.displaysIndicator)
+    }
+    func testOtherSessionCompletingDoesNotHideActiveTask() {
+        let now = Date()
+        let working = CodexEvent(name: "PostToolUse", sessionID: "working", turnID: "a", timestamp: now.addingTimeInterval(-10))
+        let completed = CodexEvent(name: "Stop", sessionID: "finished", turnID: "b", timestamp: now.addingTimeInterval(-1))
+        XCTAssertEqual(CodexActivitySnapshot.derive(from: [working, completed], at: now).activity, .running)
+    }
     func testHookDropsPromptAndToolInput() throws {
         let json = Data(#"{"session_id":"s1","turn_id":"t1","prompt":"secret prompt","tool_input":{"token":"secret token"}}"#.utf8)
         let event = try XCTUnwrap(CodexEvent.fromHook(name: "UserPromptSubmit", input: json))

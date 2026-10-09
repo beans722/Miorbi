@@ -3,6 +3,7 @@ set -euo pipefail
 
 repo_dir="${0:A:h:h}"
 target_arch="${MIORBI_ARCH:-$(uname -m)}"
+release_version="0.1.1-beta.1"
 case "$target_arch" in
   arm64) scratch_dir="$repo_dir/.build/release-package"; target_flags=() ;;
   x86_64) scratch_dir="$repo_dir/.build/intel-release-package"; target_flags=(--triple x86_64-apple-macosx14.0) ;;
@@ -26,15 +27,15 @@ swift build -c release --disable-sandbox -debug-info-format none "${target_flags
 cp "$product_dir/Miorbi" "$app_dir/Contents/MacOS/Miorbi"
 cp -R "$product_dir/Miorbi_Miorbi.bundle" "$app_dir/Contents/Resources/"
 cp Packaging/Info.plist "$app_dir/Contents/Info.plist"
-cp Assets/Miorbi.icns "$app_dir/Contents/Resources/Miorbi.icns"
+cp Assets/Miorbi.icns "$app_dir/Contents/Resources/Miorbi-LyricFocus.icns"
 cp LICENSE "$stage_dir/LICENSE.txt"
 cp Packaging/SOURCE.txt "$stage_dir/SOURCE.txt"
 ln -s /Applications "$stage_dir/Applications"
 
 # Ad-hoc signing avoids the mismatched-Team-ID framework crash seen in the old fork.
 # It does not replace Apple notarization or bypass the normal Gatekeeper warning.
-codesign --force --sign - "$app_dir"
+codesign --force --sign "${MIORBI_SIGNING_IDENTITY:--}" "$app_dir"
 codesign --verify --strict --verbose=2 "$app_dir"
 hdiutil create -volname "Miorbi Preview" -srcfolder "$stage_dir" \
-  -format UDZO -ov "$repo_dir/dist/Miorbi-0.1.0-beta.1-$target_arch.dmg"
-echo "$repo_dir/dist/Miorbi-0.1.0-beta.1-$target_arch.dmg"
+  -format UDZO -ov "$repo_dir/dist/Miorbi-$release_version-$target_arch.dmg"
+echo "$repo_dir/dist/Miorbi-$release_version-$target_arch.dmg"

@@ -19,6 +19,18 @@ struct FocusClock: Codable, Equatable {
 
     var creditedMinutes: Int { Int(accumulatedSeconds / 60) }
 
+    static func restoringLegacyTotal(seconds: Double, pets: Set<FocusPet>) -> FocusClock {
+        var clock = FocusClock()
+        clock.accumulatedSeconds = seconds.isFinite ? max(0, seconds) : 0
+        clock.claimedPets = pets
+        return clock
+    }
+
+    mutating func mergeLegacyTotal(seconds: Double, pets: Set<FocusPet>) {
+        if seconds.isFinite { accumulatedSeconds = max(accumulatedSeconds, seconds) }
+        claimedPets.formUnion(pets)
+    }
+
     func remainingSeconds(at now: Date) -> TimeInterval {
         let elapsed = completedSeconds + (phase == .running ? max(0, now.timeIntervalSince(startedAt ?? now)) : 0)
         return max(0, Double(durationMinutes * 60) - elapsed)

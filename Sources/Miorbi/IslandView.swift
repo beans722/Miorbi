@@ -2,69 +2,148 @@ import SwiftUI
 
 struct IslandView: View {
     @ObservedObject var store: AppStore
+    var notchWidth: CGFloat = 180
+    var barHeight: CGFloat = 32
+    var wingWidth: CGFloat = 96
 
     var body: some View {
         VStack(spacing: 0) {
-            HStack(spacing: 10) {
-                leadingContent
-                Spacer(minLength: 170)
-                if store.focus.phase == .running || store.focus.phase == .paused {
+            HStack(spacing: 0) {
+                if store.isExpanded || codexVisible {
+                HStack(spacing: 10) { leadingContent }
+                    .buttonStyle(.plain)
+                    .frame(width: wingWidth, alignment: .leading)
+                Color.clear.frame(width: notchWidth)
+                HStack(spacing: 0) {
+                if codexVisible {
+                    VStack(alignment: .trailing, spacing: 2) {
+                        Text(codexStatus)
+                            .font(.system(size: 10, weight: .semibold))
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.75)
+                        if store.codex.activity.displaysUsage {
+                        if let usage = store.usage {
+                            HStack(spacing: 4) {
+                            if let five = usage.fiveHour { Text("5h \(five.remainingPercent)%") }
+                            if let week = usage.weekly { Text("7d \(week.remainingPercent)%") }
+                            }
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.85)
+                        } else { Text(store.label("限额同步中", "Syncing limits")) }
+                        }
+                    }
+                    .font(.system(size: 9, weight: .semibold, design: .rounded))
+                    .monospacedDigit()
+                    .shadow(color: .black.opacity(0.9), radius: 2, x: 0, y: 1)
+                } else if store.focus.phase == .running || store.focus.phase == .paused {
                     focusIndicator
+                } else if store.music.playback != .stopped, let pet = store.selectedPet, store.focus.claimedPets.contains(pet) {
+                    PetView(pet: pet, isActive: store.music.isPlaying, now: store.now)
                 } else if codexVisible && (!store.music.isPlaying || store.codex.activity == .approval) {
                     VStack(alignment: .trailing, spacing: 1) {
-                        Text(codexStatus)
+                        Text(codexStatus).font(.system(size: 9, weight: .medium))
                         if !store.music.isPlaying, let usage = store.usage {
-                            HStack(spacing: 5) {
+                            VStack(alignment: .trailing, spacing: 0) {
                                 if let five = usage.fiveHour { Text("5h \(five.remainingPercent)%") }
                                 if let week = usage.weekly { Text("7d \(week.remainingPercent)%") }
                             }
                             .foregroundStyle(.white.opacity(0.7))
+                            .font(.system(size: 10, weight: .semibold, design: .rounded))
                         }
                     }
                     .font(.system(size: 11, weight: .medium, design: .rounded))
                     .monospacedDigit()
                 }
+                }
+                .frame(width: wingWidth, alignment: .trailing)
+                } else {
+                    Color.clear.frame(width: notchWidth)
+                }
             }
-            .padding(.horizontal, 18)
-            .frame(height: 64)
+            .padding(.horizontal, store.isExpanded || codexVisible ? 12 : 0)
+            .frame(height: barHeight)
+
+            if store.music.provider == .netease, store.music.playback != .stopped,
+               (store.focus.phase != .running && store.focus.phase != .paused) || store.showLyricsDuringFocus,
+               store.neteaseLyricsEnabled {
+                Text(store.lyric.isEmpty ? (store.lyricError ?? " ") : store.lyric)
+                    .font(.system(size: 12, weight: .medium))
+                    .shadow(color: .black.opacity(0.85), radius: 2, x: 0, y: 1)
+                    .lineLimit(1)
+                    .frame(width: (store.isExpanded ? notchWidth + wingWidth * 2 + 24 : notchWidth) - 36, alignment: .center)
+                    .clipped()
+                    .padding(.horizontal, 18)
+                    .frame(height: 26)
+                    .accessibilityIdentifier("currentLyric")
+            }
 
             if store.isExpanded {
                 HStack(spacing: 12) {
                     if store.focus.phase == .running {
                         Button(store.label("暂停", "Pause")) { store.pauseFocus() }
+                        Spacer()
                         Button(store.label("结束", "Finish")) { store.finishFocus() }
                     } else if store.focus.phase == .paused {
                         Button(store.label("继续", "Resume")) { store.resumeFocus() }
+                        Spacer()
                         Button(store.label("结束", "Finish")) { store.finishFocus() }
                     } else {
-                        Button(store.label("开始专注", "Start focus")) { store.startFocus() }
-                        Picker("", selection: $store.selectedMinutes) {
-                            Text("15 min").tag(15)
-                            Text("25 min").tag(25)
-                            Text("60 min").tag(60)
+                        Button { store.startFocus() } label: {
+                            Label(store.label("开始专注", "Start focus"), systemImage: "timer")
+                                .foregroundStyle(.mint)
                         }
-                        .frame(width: 90)
-                        .onChange(of: store.selectedMinutes) { _, _ in store.savePreferences() }
+                        Spacer(minLength: 24)
+                        Button { store.choosingFocusDuration.toggle() } label: {
+                            HStack(spacing: 7) {
+                                Text(store.language == "en" ? "\(store.selectedMinutes) min" : "\(store.selectedMinutes) 分钟")
+                                    .monospacedDigit()
+                                Image(systemName: "chevron.down").font(.system(size: 8, weight: .semibold))
+                            }
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundStyle(.white.opacity(0.75))
+                            .padding(.horizontal, 11)
+                            .frame(height: 28)
+                            .background(.white.opacity(0.08), in: Capsule())
+                        }
+                        .buttonStyle(.plain)
+                        .popover(isPresented: $store.choosingFocusDuration, arrowEdge: .bottom) {
+                            VStack(spacing: 6) {
+                                ForEach([15, 25, 60], id: \.self) { minutes in
+                                    Button(store.language == "en" ? "\(minutes) min" : "\(minutes) 分钟") {
+                                        store.selectedMinutes = minutes
+                                        store.savePreferences()
+                                        store.choosingFocusDuration = false
+                                    }
+                                    .buttonStyle(FocusActionStyle())
+                                    .foregroundStyle(store.selectedMinutes == minutes ? .mint : .white)
+                                }
+                            }
+                            .padding(10)
+                            .preferredColorScheme(.dark)
+                        }
                     }
-                    Spacer()
-                    if let banner = store.banner { Text(banner).font(.caption).foregroundStyle(.secondary) }
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(FocusActionStyle())
                 .padding(.horizontal, 16)
-                .frame(height: 56)
+                .frame(height: 40)
+                .transition(.opacity)
             }
         }
         .foregroundStyle(.white)
-        .frame(maxWidth: .infinity, alignment: .top)
-        .background(Color.black)
-        .clipShape(RoundedRectangle(cornerRadius: 24))
-        .frame(maxHeight: .infinity, alignment: .top)
-        .onHover { store.isExpanded = $0 }
+        .frame(width: store.isExpanded || codexVisible ? notchWidth + wingWidth * 2 + 24 : notchWidth)
+        .background(alignment: .top) {
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(Color.black)
+                .frame(width: store.isExpanded || codexVisible ? nil : notchWidth)
+                .frame(height: store.isExpanded ? nil : barHeight)
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .animation(.spring(response: 0.28, dampingFraction: 0.9), value: store.isExpanded)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
 
     private var codexVisible: Bool {
-        guard store.codex.activity != .idle else { return false }
-        return NSWorkspace.shared.frontmostApplication?.bundleIdentifier != "com.openai.codex"
+        store.codex.activity.displaysIndicator && (!store.music.isPlaying || store.codex.activity == .approval)
     }
 
     private var codexStatus: String {
@@ -80,22 +159,12 @@ struct IslandView: View {
 
     @ViewBuilder
     private var leadingContent: some View {
-        if store.music.playback != .stopped {
+        if !codexVisible && store.music.playback != .stopped {
             Button { store.musicCommand(.previous) } label: { Image(systemName: "backward.end.fill") }
             Button { store.musicCommand(.toggle) } label: {
                 Image(systemName: store.music.isPlaying ? "pause.fill" : "play.fill")
             }
             Button { store.musicCommand(.next) } label: { Image(systemName: "forward.end.fill") }
-            if let pet = store.selectedPet, store.focus.claimedPets.contains(pet) {
-                PetView(pet: pet, isActive: store.music.isPlaying, now: store.now)
-            }
-            if store.isExpanded {
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(store.music.title).font(.system(size: 12, weight: .semibold)).lineLimit(1)
-                    Text(store.music.artist).font(.system(size: 10)).foregroundStyle(.white.opacity(0.65)).lineLimit(1)
-                }
-                .frame(maxWidth: 120, alignment: .leading)
-            }
         } else if codexVisible {
             if let pet = store.selectedPet, store.focus.claimedPets.contains(pet) {
                 PetView(pet: pet, isActive: store.codex.activity == .running, now: store.now)
@@ -104,10 +173,8 @@ struct IslandView: View {
                     .foregroundStyle(store.codex.activity == .approval ? .orange : .mint)
                     .symbolEffect(.pulse, options: .repeating, isActive: store.codex.activity == .running)
             }
-            Text("Codex").font(.system(size: 14, weight: .semibold))
         } else {
-            Image(systemName: "circle.hexagongrid.fill").foregroundStyle(.cyan)
-            Text("Miorbi").font(.system(size: 14, weight: .semibold))
+            Color.clear.frame(width: 0, height: 0)
         }
     }
 
@@ -129,6 +196,18 @@ struct IslandView: View {
                     .font(.system(size: 12, weight: .semibold))
             }
         }
+    }
+}
+
+private struct FocusActionStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.system(size: 12, weight: .medium))
+            .padding(.horizontal, 11)
+            .frame(height: 28)
+            .background(.white.opacity(configuration.isPressed ? 0.14 : 0.06), in: Capsule())
+            .scaleEffect(configuration.isPressed ? 0.97 : 1)
+            .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
     }
 }
 

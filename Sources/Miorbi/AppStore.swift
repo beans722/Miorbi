@@ -12,11 +12,20 @@ final class AppStore: ObservableObject {
     @Published var alwaysShowFocusTime: Bool
     @Published var usageSyncEnabled: Bool
     @Published var isExpanded = false
+    @Published var choosingFocusDuration = false
     @Published var now = Date()
     @Published var banner: String?
     @Published var codex = CodexActivitySnapshot(activity: .idle, since: nil)
     @Published var codexHooksConnected = false
     @Published var music = MusicSnapshot()
+    @Published var neteaseLyricsEnabled: Bool
+    @Published var lyric = ""
+    @Published var lyricError: String?
+    private var lyricTrack = ""
+    private var lyricLines: [LyricLine] = []
+    private var lyricCache: [String: [LyricLine]] = [:]
+    private var musicPollInFlight = false
+    private var lastActivityPoll = Date.distantPast
     @Published var usage: UsageSnapshot?
     @Published var usageError: String?
 
@@ -29,13 +38,18 @@ final class AppStore: ObservableObject {
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
+        neteaseLyricsEnabled = defaults.bool(forKey: "neteaseLyricsEnabled")
         if let data = defaults.data(forKey: "focusClock"),
            let restored = try? JSONDecoder().decode(FocusClock.self, from: data) {
             var safe = restored
             if safe.phase == .running { safe.suspendAfterRestart() }
             focus = safe
         } else {
-            focus = FocusClock()
+            let legacy = defaults == UserDefaults.standard ? UserDefaults.standard.persistentDomain(forName: "xyz.notchly.Notchly") : nil
+            let pets = (legacy?["notchly.focus.claimedPets"] as? [String] ?? []).compactMap { name -> FocusPet? in
+                name == "jumpingBean" ? .bean : (name == "calf" ? .calf : nil)
+            }
+            focus = FocusClock.restoringLegacyTotal(seconds: legacy?["notchly.focus.totalSeconds"] as? Double ?? 0, pets: Set(pets))
         }
         let duration = defaults.integer(forKey: "focusMinutes")
         selectedMinutes = [15, 25, 60].contains(duration) ? duration : 25
@@ -45,7 +59,18 @@ final class AppStore: ObservableObject {
         alwaysShowFocusTime = defaults.bool(forKey: "alwaysShowFocusTime")
         usageSyncEnabled = defaults.bool(forKey: "usageSyncEnabled")
         codexHooksConnected = defaults.bool(forKey: "codexHooksConnected")
-        timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
+        if defaults == UserDefaults.standard, !defaults.bool(forKey: "legacyFocusImported"),
+           let legacy = defaults.persistentDomain(forName: "xyz.notchly.Notchly") {
+            let names = legacy["notchly.focus.claimedPets"] as? [String] ?? []
+            let pets = Set(names.compactMap { $0 == "jumpingBean" ? FocusPet.bean : ($0 == "calf" ? FocusPet.calf : nil) })
+            focus.mergeLegacyTotal(seconds: legacy["notchly.focus.totalSeconds"] as? Double ?? 0, pets: pets)
+            if selectedPet == nil, let name = legacy["notchly.focus.selectedPet"] as? String {
+                selectedPet = name == "jumpingBean" ? .bean : (name == "calf" ? .calf : nil)
+                defaults.set(selectedPet?.rawValue, forKey: "selectedPet")
+            }
+            defaults.set(true, forKey: "legacyFocusImported")
+        }
+        timer = Timer.scheduledTimer(withTimeInterval: 0.2, repeats: true) { [weak self] _ in
             Task { @MainActor [weak self] in self?.tick() }
         }
         persistFocus()
@@ -57,7 +82,23 @@ final class AppStore: ObservableObject {
 
     func tick() {
         now = Date()
-        codex = CodexActivitySnapshot.derive(from: CodexEventFile.recentEvents(), at: now)
+        if CommandLine.arguments.contains("--debug-music") {
+            let report: [String: Any] = ["time": now.timeIntervalSince1970, "title": music.title,
+                "position": music.position, "playing": music.isPlaying, "lyric": lyric,
+                "pollInFlight": musicPollInFlight, "lyricsEnabled": neteaseLyricsEnabled,
+                "error": lyricError ?? music.error ?? "", "codexState": String(describing: codex.activity),
+                "fiveHourRemaining": usage?.fiveHour?.remainingPercent ?? -1,
+                "weeklyRemaining": usage?.weekly?.remainingPercent ?? -1,
+                "usageError": usageError ?? "", "usageEnabled": usageSyncEnabled,
+                "expanded": isExpanded, "frontmost": NSWorkspace.shared.frontmostApplication?.bundleIdentifier ?? ""]
+            if let data = try? JSONSerialization.data(withJSONObject: report, options: [.sortedKeys]) {
+                try? data.write(to: URL(fileURLWithPath: "/private/tmp/miorbi-music-test.json"), options: .atomic)
+            }
+        }
+        if now.timeIntervalSince(lastActivityPoll) >= 1 {
+            lastActivityPoll = now
+            codex = CodexActivitySnapshot.derive(from: CodexEventFile.recentEvents(), at: now)
+        }
         if usageSyncEnabled, !usagePollInFlight, now.timeIntervalSince(lastUsagePoll) >= 300 {
             lastUsagePoll = now
             usagePollInFlight = true
@@ -71,11 +112,14 @@ final class AppStore: ObservableObject {
                 self?.usagePollInFlight = false
             }
         }
-        if now.timeIntervalSince(lastMusicPoll) >= 2 {
+        if !musicPollInFlight, now.timeIntervalSince(lastMusicPoll) >= 0.2 {
             lastMusicPoll = now
+            musicPollInFlight = true
             Task { [weak self] in
                 let snapshot = await Task.detached(priority: .utility) { MusicBridge.read() }.value
                 self?.music = snapshot
+                self?.updateLyrics(snapshot)
+                self?.musicPollInFlight = false
             }
         }
         if focus.tick(at: now) {
@@ -88,9 +132,36 @@ final class AppStore: ObservableObject {
         }
     }
 
+    private func updateLyrics(_ snapshot: MusicSnapshot) {
+        let id = neteaseLyricsEnabled && snapshot.provider == .netease ? snapshot.trackID : ""
+        if lyricTrack != id {
+            lyricTrack = id
+            lyricLines = lyricCache[id] ?? []
+            lyric = ""
+            lyricError = nil
+            if !id.isEmpty, lyricCache[id] == nil {
+                Task { [weak self] in
+                    do {
+                        let lines = try await SyncedLyrics.fetchNetEase(id: id)
+                        guard let self else { return }
+                        self.lyricCache[id] = lines
+                        if self.lyricTrack == id {
+                            self.lyricLines = lines
+                            self.lyricError = lines.isEmpty ? self.label("这首歌暂无同步歌词", "No synced lyrics for this track") : nil
+                        }
+                    } catch {
+                        if self?.lyricTrack == id { self?.lyricError = error.localizedDescription }
+                    }
+                }
+            }
+        }
+        lyric = SyncedLyrics.current(lyricLines, at: snapshot.position)
+    }
+
     func musicCommand(_ action: MusicBridge.Action) {
+        let provider = music.provider
         Task { [weak self] in
-            let error = await Task.detached(priority: .userInitiated) { MusicBridge.command(action) }.value
+            let error = await Task.detached(priority: .userInitiated) { MusicBridge.command(action, provider: provider) }.value
             if let error { self?.banner = error }
             self?.music = await Task.detached(priority: .utility) { MusicBridge.read() }.value
         }
@@ -141,6 +212,7 @@ final class AppStore: ObservableObject {
         defaults.set(showLyricsDuringFocus, forKey: "showLyricsDuringFocus")
         defaults.set(alwaysShowFocusTime, forKey: "alwaysShowFocusTime")
         defaults.set(usageSyncEnabled, forKey: "usageSyncEnabled")
+        defaults.set(neteaseLyricsEnabled, forKey: "neteaseLyricsEnabled")
         if !usageSyncEnabled { usage = nil; usageError = nil }
     }
 
