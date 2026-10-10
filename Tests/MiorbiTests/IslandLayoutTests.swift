@@ -63,6 +63,15 @@ final class IslandLayoutTests: XCTestCase {
         XCTAssertEqual(activeBitmap.colorAt(x: 4, y: 66)?.alphaComponent ?? 0, 1, accuracy: 0.01)
         try XCTUnwrap(activeBitmap.representation(using: .png, properties: [:]))
             .write(to: URL(fileURLWithPath: "/private/tmp/miorbi-single-codex.png"))
+        store.codex = .init(activity: .completed, since: Date())
+        store.isExpanded = false
+        let completedRenderer = ImageRenderer(content: IslandView(store: store, notchWidth: 180, barHeight: 32)
+            .frame(width: 288, height: 32))
+        completedRenderer.scale = 2
+        let completedImage = try XCTUnwrap(completedRenderer.nsImage)
+        let completedBitmap = try XCTUnwrap(NSBitmapImageRep(data: XCTUnwrap(completedImage.tiffRepresentation)))
+        try XCTUnwrap(completedBitmap.representation(using: .png, properties: [:]))
+            .write(to: URL(fileURLWithPath: "/private/tmp/miorbi-completed-monitor.png"))
     }
     func testCameraAndControlsAlwaysHaveDedicatedSpace() {
         for camera in [120.0, 180, 220] {

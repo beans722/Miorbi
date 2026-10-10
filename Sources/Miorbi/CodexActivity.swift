@@ -24,7 +24,7 @@ enum CodexActivity: Equatable {
     case completed
     case interrupted
 
-    var displaysUsage: Bool { self == .running || self == .approval }
+    var displaysUsage: Bool { self == .running || self == .approval || self == .completed }
     var displaysIndicator: Bool { displaysUsage || self == .completed || self == .interrupted }
 }
 
@@ -63,17 +63,17 @@ struct CodexActivitySnapshot: Equatable {
     let activity: CodexActivity
     let since: Date?
 
-    // Stop ends a turn, not necessarily the user's whole task. Wait for a
-    // quiet period so an automatic continuation can cancel the notice.
-    static let completionQuietPeriod: TimeInterval = 30
-    static let completionDisplayPeriod: TimeInterval = 5
+    // A Stop hook ends the current turn. Keep a visibly resting completion
+    // state until the monitoring deadline; new activity immediately resumes.
+    static let completionQuietPeriod: TimeInterval = 0
+    static let completionDisplayPeriod: TimeInterval = 300
 
-    static func derive(from events: [CodexEvent], at now: Date = Date()) -> CodexActivitySnapshot {
-        let valid = events.filter { now.timeIntervalSince($0.timestamp) >= 0 && now.timeIntervalSince($0.timestamp) < 7_200 }
+    static func derive(from events: [CodexEvent], at now: Date = Date(), monitoringMinutes: Int = 5) -> CodexActivitySnapshot {
+        let valid = events.filter { now.timeIntervalSince($0.timestamp) >= 0 && now.timeIntervalSince($0.timestamp) < 7_200 }.sorted { $0.timestamp < $1.timestamp }
         // One finished chat must not hide another chat that is still working.
         let sessions = Dictionary(grouping: valid, by: \.sessionID)
         if sessions.count > 1 {
-            let candidates = sessions.values.map { derive(from: $0, at: now) }
+            let candidates = sessions.values.map { derive(from: $0, at: now, monitoringMinutes: monitoringMinutes) }
             let priorities: [CodexActivity] = [.approval, .running, .settling, .completed, .interrupted]
             for activity in priorities {
                 if let match = candidates.filter({ $0.activity == activity }).max(by: { ($0.since ?? .distantPast) < ($1.since ?? .distantPast) }) { return match }
@@ -86,10 +86,7 @@ struct CodexActivitySnapshot: Equatable {
         switch last.name {
         case "Stop":
             let age = now.timeIntervalSince(last.timestamp)
-            if age < completionQuietPeriod {
-                return .init(activity: .settling, since: last.timestamp)
-            }
-            if age < completionQuietPeriod + completionDisplayPeriod {
+            if age < TimeInterval(monitoringMinutes == 10 ? 600 : 300) {
                 return .init(activity: .completed, since: last.timestamp)
             }
             return .init(activity: .idle, since: nil)

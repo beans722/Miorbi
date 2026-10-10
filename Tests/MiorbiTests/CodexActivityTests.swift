@@ -2,10 +2,11 @@ import XCTest
 @testable import Miorbi
 
 final class CodexActivityTests: XCTestCase {
-    func testLimitsDisappearAsSoonAsTaskStops() {
+    func testLimitsRemainDuringCompletionMonitoringAndDisappearOnIdle() {
         XCTAssertTrue(CodexActivity.running.displaysUsage)
         XCTAssertTrue(CodexActivity.approval.displaysUsage)
-        for state in [CodexActivity.settling, .completed, .interrupted, .idle] {
+        XCTAssertTrue(CodexActivity.completed.displaysUsage)
+        for state in [CodexActivity.settling, .interrupted, .idle] {
             XCTAssertFalse(state.displaysUsage)
         }
         XCTAssertFalse(CodexActivity.settling.displaysIndicator)
@@ -35,17 +36,28 @@ final class CodexActivityTests: XCTestCase {
         XCTAssertEqual(CodexActivitySnapshot.derive(from: [start, approval, used], at: now.addingTimeInterval(4)).activity, .running)
     }
 
-    func testCompletionWaitsForQuietPeriodAndOnlyAppearsOnce() {
+    func testCompletionIsImmediateAndNewActivityResumes() {
         let now = Date(timeIntervalSince1970: 10_000)
         let start = CodexEvent(name: "UserPromptSubmit", sessionID: "s", turnID: "t", timestamp: now)
         let firstStop = CodexEvent(name: "Stop", sessionID: "s", turnID: "t", timestamp: now.addingTimeInterval(5))
         let resumed = CodexEvent(name: "PostToolUse", sessionID: "s", turnID: "t", timestamp: now.addingTimeInterval(15))
         let finalStop = CodexEvent(name: "Stop", sessionID: "s", turnID: "t", timestamp: now.addingTimeInterval(20))
 
-        XCTAssertEqual(CodexActivitySnapshot.derive(from: [start, firstStop], at: now.addingTimeInterval(10)).activity, .settling)
+        XCTAssertEqual(CodexActivitySnapshot.derive(from: [start, firstStop], at: now.addingTimeInterval(10)).activity, .completed)
         XCTAssertEqual(CodexActivitySnapshot.derive(from: [start, firstStop, resumed], at: now.addingTimeInterval(17)).activity, .running)
-        XCTAssertEqual(CodexActivitySnapshot.derive(from: [start, firstStop, resumed, finalStop], at: now.addingTimeInterval(49)).activity, .settling)
+        XCTAssertEqual(CodexActivitySnapshot.derive(from: [start, firstStop, resumed, finalStop], at: now.addingTimeInterval(49)).activity, .completed)
         XCTAssertEqual(CodexActivitySnapshot.derive(from: [start, firstStop, resumed, finalStop], at: now.addingTimeInterval(50)).activity, .completed)
-        XCTAssertEqual(CodexActivitySnapshot.derive(from: [start, firstStop, resumed, finalStop], at: now.addingTimeInterval(56)).activity, .idle)
+        XCTAssertEqual(CodexActivitySnapshot.derive(from: [start, firstStop, resumed, finalStop], at: now.addingTimeInterval(320)).activity, .idle)
     }
+    func testFiveAndTenMinuteMonitoringDeadlines() {
+        let now = Date(timeIntervalSince1970: 10_000)
+        let stop = CodexEvent(name: "Stop", sessionID: "s", turnID: "t", timestamp: now)
+        XCTAssertEqual(CodexActivitySnapshot.derive(from: [stop], at: now.addingTimeInterval(299)).activity, .completed)
+        XCTAssertEqual(CodexActivitySnapshot.derive(from: [stop], at: now.addingTimeInterval(300)).activity, .idle)
+        XCTAssertEqual(CodexActivitySnapshot.derive(from: [stop], at: now.addingTimeInterval(599), monitoringMinutes: 10).activity, .completed)
+        XCTAssertEqual(CodexActivitySnapshot.derive(from: [stop], at: now.addingTimeInterval(600), monitoringMinutes: 10).activity, .idle)
+        let start = CodexEvent(name: "UserPromptSubmit", sessionID: "s", turnID: "next", timestamp: now.addingTimeInterval(610))
+        XCTAssertEqual(CodexActivitySnapshot.derive(from: [stop, start], at: now.addingTimeInterval(611)).activity, .running)
+    }
+
 }

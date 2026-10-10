@@ -7,7 +7,7 @@ on:
     paths:
       - '.github/workflows/release.yml'
       - 'Packaging/Info.plist'
-      - 'docs/0.1.1-beta.7.md'
+      - 'docs/0.1.1-beta.8.md'
       - 'Sources/Miorbi/ApplicationController.swift'
       - 'Packaging/build-dmg.sh'
 
@@ -31,19 +31,19 @@ jobs:
         run: |
           MIORBI_ARCH=arm64 zsh Packaging/build-dmg.sh
           MIORBI_ARCH=x86_64 zsh Packaging/build-dmg.sh
-          hdiutil verify dist/Miorbi-0.1.1-beta.7-arm64.dmg
-          hdiutil verify dist/Miorbi-0.1.1-beta.7-x86_64.dmg
+          hdiutil verify dist/Miorbi-0.1.1-beta.8-arm64.dmg
+          hdiutil verify dist/Miorbi-0.1.1-beta.8-x86_64.dmg
           cd dist
-          shasum -a 256 Miorbi-0.1.1-beta.7-arm64.dmg Miorbi-0.1.1-beta.7-x86_64.dmg > SHA256SUMS.txt
+          shasum -a 256 Miorbi-0.1.1-beta.8-arm64.dmg Miorbi-0.1.1-beta.8-x86_64.dmg > SHA256SUMS.txt
           shasum -a 256 -c SHA256SUMS.txt
       - name: Publish prerelease
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          tag=v0.1.1-beta.7
+          tag=v0.1.1-beta.8
           if gh release view "$tag" >/dev/null 2>&1; then
-            gh release upload "$tag" dist/Miorbi-0.1.1-beta.7-arm64.dmg dist/Miorbi-0.1.1-beta.7-x86_64.dmg dist/SHA256SUMS.txt --clobber
-            gh release edit "$tag" --notes-file docs/0.1.1-beta.7.md --prerelease
+            gh release upload "$tag" dist/Miorbi-0.1.1-beta.8-arm64.dmg dist/Miorbi-0.1.1-beta.8-x86_64.dmg dist/SHA256SUMS.txt --clobber
+            gh release edit "$tag" --notes-file docs/0.1.1-beta.8.md --prerelease
           else
-            gh release create "$tag" dist/Miorbi-0.1.1-beta.7-arm64.dmg dist/Miorbi-0.1.1-beta.7-x86_64.dmg dist/SHA256SUMS.txt --target "$GITHUB_SHA" --title 'Miorbi 0.1.1 Beta 7 — Lyric Focus' --notes-file docs/0.1.1-beta.7.md --prerelease
+            gh release create "$tag" dist/Miorbi-0.1.1-beta.8-arm64.dmg dist/Miorbi-0.1.1-beta.8-x86_64.dmg dist/SHA256SUMS.txt --target "$GITHUB_SHA" --title 'Miorbi 0.1.1 Beta 8 — Lyric Focus' --notes-file docs/0.1.1-beta.8.md --prerelease
           fi

@@ -11,6 +11,7 @@ final class AppStore: ObservableObject {
     @Published var showLyricsDuringFocus: Bool
     @Published var alwaysShowFocusTime: Bool
     @Published var usageSyncEnabled: Bool
+    @Published var codexMonitoringMinutes: Int
     @Published var isExpanded = false
     @Published var choosingFocusDuration = false
     @Published var now = Date()
@@ -58,6 +59,7 @@ final class AppStore: ObservableObject {
         showLyricsDuringFocus = defaults.bool(forKey: "showLyricsDuringFocus")
         alwaysShowFocusTime = defaults.bool(forKey: "alwaysShowFocusTime")
         usageSyncEnabled = defaults.bool(forKey: "usageSyncEnabled")
+        codexMonitoringMinutes = defaults.integer(forKey: "codexMonitoringMinutes") == 10 ? 10 : 5
         codexHooksConnected = defaults.bool(forKey: "codexHooksConnected")
         if defaults == UserDefaults.standard, !defaults.bool(forKey: "legacyFocusImported"),
            let legacy = defaults.persistentDomain(forName: "xyz.notchly.Notchly") {
@@ -97,9 +99,9 @@ final class AppStore: ObservableObject {
         }
         if now.timeIntervalSince(lastActivityPoll) >= 1 {
             lastActivityPoll = now
-            codex = CodexActivitySnapshot.derive(from: CodexEventFile.recentEvents(), at: now)
+            codex = CodexActivitySnapshot.derive(from: CodexEventFile.recentEvents(), at: now, monitoringMinutes: codexMonitoringMinutes)
         }
-        if usageSyncEnabled, !usagePollInFlight, now.timeIntervalSince(lastUsagePoll) >= 300 {
+        if usageSyncEnabled, codex.activity.displaysIndicator, !usagePollInFlight, now.timeIntervalSince(lastUsagePoll) >= 300 {
             lastUsagePoll = now
             usagePollInFlight = true
             Task { [weak self] in
@@ -212,6 +214,7 @@ final class AppStore: ObservableObject {
         defaults.set(showLyricsDuringFocus, forKey: "showLyricsDuringFocus")
         defaults.set(alwaysShowFocusTime, forKey: "alwaysShowFocusTime")
         defaults.set(usageSyncEnabled, forKey: "usageSyncEnabled")
+        defaults.set(codexMonitoringMinutes == 10 ? 10 : 5, forKey: "codexMonitoringMinutes")
         defaults.set(neteaseLyricsEnabled, forKey: "neteaseLyricsEnabled")
         if !usageSyncEnabled { usage = nil; usageError = nil }
     }

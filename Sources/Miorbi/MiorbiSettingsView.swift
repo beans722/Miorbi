@@ -76,11 +76,18 @@ struct MiorbiSettingsView: View {
         .onChange(of: store.showLyricsDuringFocus) { _, _ in store.savePreferences() }
         .onChange(of: store.alwaysShowFocusTime) { _, _ in store.savePreferences() }
         .onChange(of: store.usageSyncEnabled) { _, _ in store.savePreferences() }
+        .onChange(of: store.codexMonitoringMinutes) { _, _ in store.savePreferences() }
         .onChange(of: store.neteaseLyricsEnabled) { _, _ in store.savePreferences() }
     }
 
     private var codexPage: some View {
             Section("Codex") {
+                Picker(store.label("任务结束后继续监控", "Monitor after completion"), selection: $store.codexMonitoringMinutes) {
+                    Text(store.label("5 分钟", "5 minutes")).tag(5)
+                    Text(store.label("10 分钟", "10 minutes")).tag(10)
+                }
+                Text(store.label("结束后显示任务结束和 Zzz；无新任务达到时限后隐藏 Codex 与限额，仍监听新任务。音乐与专注不受影响。", "Shows Finished and Zzz after Stop; hides Codex/limits after the selected quiet window while listening for new tasks. Music and focus stay available."))
+                    .font(.caption)
                 LabeledContent(store.label("当前状态", "Current status"), value: codexStatus)
                 LabeledContent(store.label("本地事件", "Local events"), value: store.codexHooksConnected ? store.label("已连接", "Connected") : store.label("未连接", "Not connected"))
                 LabeledContent(store.label("五小时剩余", "Five-hour remaining"), value: store.usage?.fiveHour.map { "\($0.remainingPercent)%" } ?? "—")
@@ -165,7 +172,7 @@ struct MiorbiSettingsView: View {
         case .running: store.label("运行中", "Running")
         case .settling: store.label("收尾中", "Settling")
         case .approval: store.label("需要审批", "Approval needed")
-        case .completed: store.label("任务完成", "Completed")
+        case .completed: store.label("任务结束 · 监控中", "Finished · Monitoring")
         case .interrupted: store.label("已中断", "Interrupted")
         }
     }

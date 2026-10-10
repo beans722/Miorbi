@@ -21,7 +21,11 @@ struct IslandView: View {
                 if compactActivity {
                     Group {
                         if codexVisible {
-                            VStack(alignment: .trailing, spacing: 1) {
+                            VStack(alignment: .trailing, spacing: store.codex.activity == .completed ? 0 : 1) {
+                                if store.codex.activity == .completed {
+                                    Text(store.label("任务结束", "Finished"))
+                                        .font(.system(size: 7, weight: .semibold)).foregroundStyle(.mint)
+                                }
                                 if store.codex.activity.displaysUsage, let usage = store.usage {
                                     if let five = usage.fiveHour { Text("5h \(five.remainingPercent)%") }
                                     if let week = usage.weekly { Text("7d \(week.remainingPercent)%") }
@@ -32,7 +36,7 @@ struct IslandView: View {
                                     Image(systemName: store.codex.activity == .approval ? "exclamationmark.circle.fill" : "checkmark")
                                 }
                             }
-                            .font(.system(size: 9, weight: .semibold, design: .rounded))
+                            .font(.system(size: store.codex.activity == .completed ? 8 : 9, weight: .semibold, design: .rounded))
                             .monospacedDigit()
                             .help(codexStatus)
                         } else if store.music.isPlaying && store.focus.phase != .running && store.focus.phase != .paused {
@@ -184,7 +188,7 @@ struct IslandView: View {
         case .running: store.label("运行中", "Running")
         case .settling: store.label("收尾中", "Wrapping up")
         case .approval: store.label("需要审批", "Approval needed")
-        case .completed: store.label("任务完成", "Task complete")
+        case .completed: store.label("任务结束 · 等待新任务", "Finished · Watching for new tasks")
         case .interrupted: store.label("已中断", "Interrupted")
         }
     }
@@ -200,10 +204,20 @@ struct IslandView: View {
         } else if codexVisible {
             if let pet = store.selectedPet, store.focus.claimedPets.contains(pet) {
                 PetView(pet: pet, isActive: store.codex.activity == .running, now: store.now)
+                    .overlay(alignment: .topTrailing) {
+                        if store.codex.activity == .completed {
+                            Text("Zzz").font(.system(size: 8, weight: .medium))
+                                .foregroundStyle(.mint.opacity(0.8)).offset(x: 7, y: -1)
+                        }
+                    }
             } else {
+                if store.codex.activity == .completed {
+                    Text("Zzz").font(.system(size: 11, weight: .medium)).foregroundStyle(.mint)
+                } else {
                 Image(systemName: store.codex.activity == .approval ? "exclamationmark.circle.fill" : "sparkle")
                     .foregroundStyle(store.codex.activity == .approval ? .orange : .mint)
                     .symbolEffect(.pulse, options: .repeating, isActive: store.codex.activity == .running)
+                }
             }
         } else {
             Color.clear.frame(width: 0, height: 0)

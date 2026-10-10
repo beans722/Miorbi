@@ -3,7 +3,7 @@ set -euo pipefail
 
 repo_dir="${0:A:h:h}"
 target_arch="${MIORBI_ARCH:-$(uname -m)}"
-release_version="0.1.1-beta.7"
+release_version="0.1.1-beta.8"
 case "$target_arch" in
   arm64) scratch_dir="$repo_dir/.build/release-package"; target_flags=() ;;
   x86_64) scratch_dir="$repo_dir/.build/intel-release-package"; target_flags=(--triple x86_64-apple-macosx14.0) ;;
