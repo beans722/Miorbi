@@ -27,6 +27,10 @@ final class AppStore: ObservableObject {
     private var lyricCache: [String: [LyricLine]] = [:]
     private var musicPollInFlight = false
     private var lastActivityPoll = Date.distantPast
+    private let runtimeVerifier = CodexRuntimeVerifier()
+    private var runtimeEvidence: [String: CodexRuntimeState] = [:]
+    private var runtimePollInFlight = false
+    private var lastRuntimePoll = Date.distantPast
     @Published var usage: UsageSnapshot?
     @Published var usageError: String?
 
@@ -99,7 +103,18 @@ final class AppStore: ObservableObject {
         }
         if now.timeIntervalSince(lastActivityPoll) >= 1 {
             lastActivityPoll = now
-            codex = CodexActivitySnapshot.derive(from: CodexEventFile.recentEvents(), at: now, monitoringMinutes: codexMonitoringMinutes)
+            let events = CodexEventFile.recentEvents()
+            codex = CodexActivitySnapshot.derive(from: events, at: now, monitoringMinutes: codexMonitoringMinutes, runtime: runtimeEvidence)
+            if !runtimePollInFlight, now.timeIntervalSince(lastRuntimePoll) >= 2 {
+                runtimePollInFlight = true
+                lastRuntimePoll = now
+                let observedAt = now
+                Task { [weak self] in
+                    guard let self else { return }
+                    self.runtimeEvidence = await self.runtimeVerifier.read(events: events, at: observedAt)
+                    self.runtimePollInFlight = false
+                }
+            }
         }
         if usageSyncEnabled, codex.activity.displaysIndicator, !usagePollInFlight, now.timeIntervalSince(lastUsagePoll) >= 300 {
             lastUsagePoll = now

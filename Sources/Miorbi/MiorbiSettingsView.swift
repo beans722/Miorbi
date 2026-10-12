@@ -88,6 +88,8 @@ struct MiorbiSettingsView: View {
                 }
                 Text(store.label("结束后显示任务结束和 Zzz；无新任务达到时限后隐藏 Codex 与限额，仍监听新任务。音乐与专注不受影响。", "Shows Finished and Zzz after Stop; hides Codex/limits after the selected quiet window while listening for new tasks. Music and focus stay available."))
                     .font(.caption)
+                Text(store.label("结束事件缺失时核对本地轮次状态与日志生命周期元数据；无法核实且无新进展达到 5/10 分钟的记录会失效，不会一直冒充运行中。只读本地，不上传对话。", "Cross-checks local turn status and lifecycle metadata if a stop is missing. Unverified records expire after 5/10 minutes without progress. Local and read-only; no conversation upload."))
+                    .font(.caption).foregroundStyle(.secondary)
                 LabeledContent(store.label("当前状态", "Current status"), value: codexStatus)
                 LabeledContent(store.label("本地事件", "Local events"), value: store.codexHooksConnected ? store.label("已连接", "Connected") : store.label("未连接", "Not connected"))
                 LabeledContent(store.label("五小时剩余", "Five-hour remaining"), value: store.usage?.fiveHour.map { "\($0.remainingPercent)%" } ?? "—")

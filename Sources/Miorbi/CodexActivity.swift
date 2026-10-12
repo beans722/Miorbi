@@ -1,7 +1,7 @@
 import AppKit
 import Foundation
 
-struct CodexEvent: Codable, Equatable {
+struct CodexEvent: Codable, Equatable, Sendable {
     let name: String
     let sessionID: String
     let turnID: String
@@ -68,12 +68,13 @@ struct CodexActivitySnapshot: Equatable {
     static let completionQuietPeriod: TimeInterval = 0
     static let completionDisplayPeriod: TimeInterval = 300
 
-    static func derive(from events: [CodexEvent], at now: Date = Date(), monitoringMinutes: Int = 5) -> CodexActivitySnapshot {
-        let valid = events.filter { now.timeIntervalSince($0.timestamp) >= 0 && now.timeIntervalSince($0.timestamp) < 7_200 }.sorted { $0.timestamp < $1.timestamp }
+    static func derive(from events: [CodexEvent], at now: Date = Date(), monitoringMinutes: Int = 5,
+                       runtime: [String: CodexRuntimeState] = [:]) -> CodexActivitySnapshot {
+        let valid = events.filter { now.timeIntervalSince($0.timestamp) >= 0 }.sorted { $0.timestamp < $1.timestamp }
         // One finished chat must not hide another chat that is still working.
         let sessions = Dictionary(grouping: valid, by: \.sessionID)
         if sessions.count > 1 {
-            let candidates = sessions.values.map { derive(from: $0, at: now, monitoringMinutes: monitoringMinutes) }
+            let candidates = sessions.values.map { derive(from: $0, at: now, monitoringMinutes: monitoringMinutes, runtime: runtime) }
             let priorities: [CodexActivity] = [.approval, .running, .settling, .completed, .interrupted]
             for activity in priorities {
                 if let match = candidates.filter({ $0.activity == activity }).max(by: { ($0.since ?? .distantPast) < ($1.since ?? .distantPast) }) { return match }
@@ -83,6 +84,19 @@ struct CodexActivitySnapshot: Equatable {
         guard let latest = valid.last else { return .init(activity: .idle, since: nil) }
         let current = valid.filter { $0.sessionID == latest.sessionID && ($0.turnID == latest.turnID || latest.turnID.isEmpty) }
         guard let last = current.last else { return .init(activity: .idle, since: nil) }
+        let window: TimeInterval = monitoringMinutes == 10 ? 600 : 300
+        if last.name != "Stop" && last.name != "Interrupt" {
+            switch runtime[CodexRuntimeVerifier.key(last)] ?? .unknown {
+            case .completed(let date):
+                return now.timeIntervalSince(date) < window ? .init(activity: .completed, since: date) : .init(activity: .idle, since: nil)
+            case .interrupted(let date):
+                return now.timeIntervalSince(date) < 5 ? .init(activity: .interrupted, since: date) : .init(activity: .idle, since: nil)
+            case .superseded: return .init(activity: .idle, since: nil)
+            case .active: break
+            case .unknown:
+                if now.timeIntervalSince(last.timestamp) >= window { return .init(activity: .idle, since: nil) }
+            }
+        }
         switch last.name {
         case "Stop":
             let age = now.timeIntervalSince(last.timestamp)
